@@ -1,0 +1,96 @@
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>Przedmiot</th>
+            <th>Oceny - Pierwszy semestr</th>
+            <th>Średnia</th>
+            <th>Ocena śródroczna</th>
+            <th>Oceny- Drugi semestr</th>
+            <th>Średnia</th>
+            <th>Ocena śródroczna</th>
+            <th>Średnia roczna</th>
+            <th>Ocena roczna</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for subject,terms in grades.items() %}
+        <tr>
+            <td>{{ subject | title }}</td>
+            {% for term, cats in terms.items() %}
+                {% if term == 'term1' %}
+                    <td>
+                        {% for cat, grades in cats.items() %}
+                            {% if cat == 'answer' %}
+                                {% for grade in grades %}
+                                    <span class="badge bg-primary"> {{ grade }}</span>
+                                {% endfor %}
+
+                            {% elif cat == 'quiz' %}
+                                {% for grade in grades %}
+                                    <span class="badge bg-warning"> {{ grade }}</span>
+                                {% endfor %}
+
+                            {% elif cat == 'test' %}
+                                {% for grade in grades %}
+                                    <span class="badge bg-secondary"> {{ grade }}</span>
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>
+                        <span class="badge bg-info"> {{ calculateAvg(grades)[subject][0] }}</span>
+                    </td>
+                    <td>
+                        {% for cat, interim in cats.items() %}
+                            {% if cat == 'interim' %}
+                                <span class="badge bg-danger"> {{ interim }}</span>
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                {% elif term == 'term2' %}
+                    <td>
+                        {% for cat, grades in cats.items() %}
+                            {% if cat == 'answer' %}
+                                {% for grade in grades %}
+                                    <span class="badge bg-primary"> {{ grade }}</span>
+                                {% endfor %}
+
+                            {% elif cat == 'quiz' %}
+                                {% for grade in grades %}
+                                    <span class="badge bg-warning"> {{ grade }}</span>
+                                {% endfor %}
+
+                            {% elif cat == 'test' %}
+                                {% for grade in grades %}
+                                    <span class="badge bg-secondary"> {{ grade }}</span>
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>
+                        <span class="badge bg-info"> {{ calculateAvg(grades)[subject][1] }}</span>
+                    </td>
+                    <td>
+                        {% for cat, interim in cats.items() %}
+                            {% if cat == 'interim' %}
+                                <span class="badge bg-danger"> {{ interim }}</span>
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>
+                     <span class="badge bg-info"> {{ calculateAvg(grades)[subject][2] }}</span>
+                    </td>
+                    <td>
+                    {% for cat, yearly in cats.items() %}
+                            {% if cat == 'yearly' %}
+                                <span class="badge bg-danger"> {{ yearly }}</span>
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                {% endif %}
+            {% endfor %}
+        </tr>
+
+    {% endfor %}
+    </tbody>
+</table>

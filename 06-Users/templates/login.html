@@ -1,0 +1,45 @@
+{% extends "bootstrap/base.html" %}
+{% block scripts %}
+    {{ super() }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+{% endblock %}
+{% block title %}{{ title }}{% endblock %}
+{% block navbar %}
+{#    {% if userLogin %}#}
+{#        {% include "includes/navbar-login.html" %}#}
+{#    {% else %}#}
+{#        {% include "includes/navbar.html" %}#}
+{#    {% endif %}#}
+{% endblock %}
+{% block content %}
+<div class="container my-5 py-5">
+        <div class="row text-center">
+                <i class="bi bi-people display-1 text-secondary"></i>
+        </div>
+        <div class="row text-center">
+                <div class="col-lg-4 offset-lg-4">
+                    <p class="display-6">{{ headLine }}</p>
+                    <p>Zastosowanie Flask-login i Flask-SQLAlchemy</p>
+                    <div class="d-grid py-3">
+                        <form method="POST">
+                            {{ login_form.hidden_tag() }}
+                            <div class="input-group flex-nowrap py-1">
+                                <span class="input-group-text text-secondary">@</span>
+                                {{ login_form.userMail(class='form-control') }}
+                            </div>
+                            <div class="input-group flex-nowrap py-1">
+                                <span class="input-group-text text-secondary"><i class="bi bi-key text-secondary"></i></span>
+                                {{ login_form.userPass(class='form-control') }}
+                            </div>
+                            <div class="d-grid py-3">
+                                {{ login_form.submit(class='btn btn-outline-secondary rounded-1') }}
+                                <a href="{{ url_for('register') }}" class="btn btn-outline-dark text-secondary rounded-1 mt-2" role="button">Zarejestruj się</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+        </div>
+    </div>
+{% endblock %}
+
+

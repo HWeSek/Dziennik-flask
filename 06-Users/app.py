@@ -1,7 +1,7 @@
 # importowanie modułów i klas
 import os
 
-from flask import Flask, render_template, session, redirect, url_for
+from flask import Flask, render_template, session, redirect, url_for, flash
 from flask_bs4 import Bootstrap
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, EmailField, SubmitField
@@ -14,6 +14,7 @@ from flask_bcrypt import Bcrypt
 app = Flask(__name__)
 bootstrap = Bootstrap(app)
 app.config['SECRET_KEY'] = 'FVGSBf7t28ub*#&$shhfbiaasd'
+bcrypt = Bcrypt(app)
 
 #konfig bazy danych
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -32,6 +33,15 @@ class Users(db.Model, UserMixin):
     def is_authenticated(self):
         return True
 #konfig Flask-login
+loginManager = LoginManager()
+loginManager.init_app(app)
+loginManager.login_view = 'login'
+loginManager.login_message = 'Nie jesteś zalogowany!'
+loginManager.login_message_category = 'warning'
+
+@loginManager.user_loader
+def loadUser(id):
+    return Users.query.filter_by(id=id).first()
 
 
 #formularze
@@ -56,13 +66,45 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    login_form = LoginForm()
+    user = Users.query.all()
+    if not user:
+        return redirect(url_for('register'))
+    else:
+        login_form = LoginForm()
+        if login_form.validate_on_submit():
+            user = Users.query.filter_by(userMail=login_form.userMail.data).first()
+            if user:
+                if bcrypt.check_password_hash(user.userPassword, login_form.userPass.data):
+                    login_user(user)
+                    return redirect(url_for('dashboard'))
     return render_template('login.html', title='Logowanie', headLine="Logowanie", login_form=login_form)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     register_form = RegisterForm()
+    if register_form.validate_on_submit():
+        try:
+            hashed_password = bcrypt.generate_password_hash(register_form.userPass.data)
+            newUser = Users(userMail=register_form.userMail.data, userPassword=hashed_password, firstName=register_form.firstName.data, lastName = register_form.lastName.data)
+            db.session.add(newUser)
+            db.session.commit()
+            flash('Konto utworzone poprawnie', 'success')
+            return redirect(url_for('login'))
+        except Exception as e:
+            flash('Taki adres E-Mail już istnieje!', 'danger')
+            return redirect(url_for('register'))
     return render_template('register.html', title='Logowanie', headLine="Logowanie", register_form=register_form)
+
+@app.route('/logout', methods=['GET', 'POST'])
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+@app.route('/dashboard', methods=['GET', 'POST'])
+def dashboard():
+    users = Users.query.all()
+    addUser = RegisterForm()
+    return render_template('dashboard.html', title='Dashboard', users=users, addUser=addUser)
 
 # @app.errorhandler(404)
 # def pageNotFound(e):

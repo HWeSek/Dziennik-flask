@@ -123,6 +123,22 @@ def deleteUser():
         flash('Użytkownik usunięty poprawnie', 'success')
         return redirect(url_for('dashboard'))
 
+@app.route('/editUser<int:id>', methods=['GET', 'POST'])
+@login_required
+def editUser(id):
+    editUser = RegisterForm()
+    user = Users.query.get_or_404(id)
+    if editUser.validate_on_submit():
+        try:
+            user.firstName = editUser.firstName.data
+            user.lastName = editUser.lastName.data
+            user.userMail = editUser.userMail.data
+            db.session.commit()
+            flash('Dane użytkownika zostały zmienione!', 'success')
+            return redirect(url_for('dashboard'))
+        except Exception as e:
+            print(e)
+
 
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():
@@ -133,7 +149,8 @@ def logout():
 def dashboard():
     users = Users.query.all()
     addUser = RegisterForm()
-    return render_template('dashboard.html', title='Dashboard', users=users, addUser=addUser)
+    editUser = RegisterForm()
+    return render_template('dashboard.html', title='Dashboard', users=users, addUser=addUser, editUser=editUser)
 
 # @app.errorhandler(404)
 # def pageNotFound(e):

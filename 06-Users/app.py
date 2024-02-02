@@ -1,7 +1,7 @@
 # importowanie modułów i klas
 import os
 
-from flask import Flask, render_template, session, redirect, url_for, flash
+from flask import Flask, render_template, session, redirect, url_for, flash, request
 from flask_bs4 import Bootstrap
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, EmailField, SubmitField
@@ -94,6 +94,35 @@ def register():
             flash('Taki adres E-Mail już istnieje!', 'danger')
             return redirect(url_for('register'))
     return render_template('register.html', title='Logowanie', headLine="Logowanie", register_form=register_form)
+
+@app.route('/addUser', methods=['GET', 'POST'])
+@login_required
+def addUser():
+    register_form = RegisterForm()
+    if register_form.validate_on_submit():
+        try:
+            hashed_password = bcrypt.generate_password_hash(register_form.userPass.data)
+            newUser = Users(userMail=register_form.userMail.data, userPassword=hashed_password, firstName=register_form.firstName.data, lastName = register_form.lastName.data)
+            db.session.add(newUser)
+            db.session.commit()
+            flash('Konto utworzone poprawnie', 'success')
+            return redirect(url_for('dashboard'))
+        except Exception as e:
+            flash('Taki adres E-Mail już istnieje!', 'danger')
+            return redirect(url_for('dashboard'))
+    return render_template('register.html', title='Logowanie', headLine="Logowanie", register_form=register_form)
+
+@app.route('/deleteUser', methods=['GET', 'POST'])
+@login_required
+def deleteUser():
+    if request.method == 'GET':
+        id = request.args.get('id')
+        user = Users.query.filter_by(id=id).one()
+        db.session.delete(user)
+        db.session.commit()
+        flash('Użytkownik usunięty poprawnie', 'success')
+        return redirect(url_for('dashboard'))
+
 
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():

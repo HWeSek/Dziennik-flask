@@ -10,7 +10,7 @@
     {% endif %}
 {% endblock %}
 {% block content %}
-    <div class="row">
+    <div class="row container-md ms-5">
             {% with messages = get_flashed_messages(with_categories=True) %}
                 {% if messages %}
                     {% for category,message in messages %}
@@ -29,6 +29,7 @@
                 <th>Imie</th>
                 <th>Nazwisko</th>
                 <th>Mail</th>
+                <th>Rola</th>
                 <th>Edycja</th>
             </tr>
             </thead>
@@ -39,8 +40,16 @@
                         <td>{{ user.firstName }}</td>
                         <td>{{ user.lastName }}</td>
                         <td>{{ user.userMail }}</td>
+                        <td>
+                        {% if user.userRole == "admin" %}
+                            Administrator
+                        {% else %}
+                            Użytkownik
+                        {% endif %}
+
+                        </td>
                         <td class="text-end">
-                            <a href="#" class="btn btn-sm btn-outline-primary"><i class="bi bi-key"></i></a>
+                            <a class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"  data-bs-target="#chUserPasswd{{ user.id }}"><i class="bi bi-key"></i></a>
                             <a class="btn btn-sm btn-outline-warning" data-bs-toggle="modal"  data-bs-target="#editUser{{ user.id }}"><i class="bi bi-pencil-square"></i></a>
                             <a class="btn btn-sm btn-outline-danger" data-bs-toggle="modal"  data-bs-target="#deleteUser{{ user.id }}"><i class="bi bi-trash3"></i></a>
                         </td>
@@ -90,6 +99,64 @@
             </div>
         </div>
     </div>
+        <!----- CHANGE PASSWORD MODAL ------>
+    <div class="modal fade" id="chPasswd" tabindex="-1" aria-lebelledby="ChangePasswordLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <p class="modal-title" id="addUserLabel">
+                        <i class="bi bi-person-add pe-2 fs-5"></i>Zmień hasło
+                    </p>
+                </div>
+                <form action="/changePassword" method="post">
+                    {{ chPasswd.hidden_tag() }}
+                    <div class="modal-body">
+                        <div class="input-group-text flex-nowrap py-1">
+                            <span class="input-group-text"><i class="bi bi-person text-secondary"></i></span>
+                            {{ chPasswd.oldUserPass(class="form-control") }}
+                        </div>
+                        <div class="input-group-text flex-nowrap py-1">
+                            <span class="input-group-text"><i class="bi bi-person text-secondary"></i></span>
+                            {{ chPasswd.newUserPass(class="form-control") }}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                             <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                        {{ chPasswd.submit(class="btn btn-sm btn-outline-secondary", value="Zmień hasło") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+        <!----- CHANGE USERS PASSWORD MODAL ------>
+    {% for user in users %}
+    <div class="modal fade" id="chUserPasswd{{ user.id }}" tabindex="-1" aria-lebelledby="ChangePasswordLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <p class="modal-title" id="addUserLabel">
+                        <i class="bi bi-person-add pe-2 fs-5"></i>Zmień hasło użytkownika {{ user.firstName }}
+                    </p>
+                </div>
+                <form action="/userPasswd{{ user.id }}" method="post">
+                    {{ SudoChUserPassword.hidden_tag() }}
+                    <div class="modal-body">
+                        <div class="input-group-text flex-nowrap py-1">
+                            <span class="input-group-text"><i class="bi bi-person text-secondary"></i></span>
+                            {{ SudoChUserPassword.newUserPass(class="form-control") }}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                             <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                        {{ SudoChUserPassword.submit(class="btn btn-sm btn-outline-secondary", value="Zmień hasło") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+     {% endfor %}
+
     <!----- EDIT USER MODAL ------>
     {% for user in users %}
     <div class="modal fade" id="editUser{{ user.id }}" tabindex="-1" aria-lebelledby="editUserLabel" aria-hidden="true">

@@ -4,7 +4,7 @@ import os
 from flask import Flask, render_template, session, redirect, url_for, flash, request
 from flask_bs4 import Bootstrap
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, EmailField, SubmitField
+from wtforms import StringField, PasswordField, EmailField, SubmitField, SelectField
 from wtforms.validators import DataRequired, Length
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 from flask_sqlalchemy import SQLAlchemy
@@ -29,6 +29,7 @@ class Users(db.Model, UserMixin):
     lastName = db.Column(db.String(30))
     userMail = db.Column(db.String(50), unique=True)
     userPassword = db.Column(db.String(50))
+    userRole = db.Column(db.String(50))
 
     def is_authenticated(self):
         return True
@@ -51,12 +52,41 @@ class LoginForm(FlaskForm):
     userPass = PasswordField('Hasło', validators=[DataRequired()], render_kw={'placeholder': 'Hasło'})
     submit = SubmitField('Zaloguj')
 
+class chPasswdForm(FlaskForm):
+    """Formularz zmiany hasła"""
+    oldUserPass = PasswordField('stare hasło', validators=[DataRequired()], render_kw={'placeholder': 'stare hasło'})
+    newUserPass = PasswordField('nowe hasło', validators=[DataRequired()], render_kw={'placeholder': 'Hasło'})
+    submit = SubmitField('Zmień hasło')
+
+class SudoChPasswdForm(FlaskForm):
+    """Formularz zmiany hasła przez administratora"""
+    newUserPass = PasswordField('nowe hasło', validators=[DataRequired()], render_kw={'placeholder': 'Hasło'})
+    submit = SubmitField('Zmień hasło')
+
 class RegisterForm(FlaskForm):
     """Formularz rejestracyjny"""
     firstName = StringField('Imię', validators=[DataRequired()], render_kw={'placeholder': 'Imię'})
     lastName = StringField('Nazwisko', validators=[DataRequired()], render_kw={'placeholder': 'Nazwisko'})
     userMail = EmailField('Mail', validators=[DataRequired()], render_kw={'placeholder': 'Mail'})
     userPass = PasswordField('Hasło', validators=[DataRequired()], render_kw={'placeholder': 'Hasło'})
+    submit = SubmitField('Zarejestruj się!')
+
+class EditUserForm(FlaskForm):
+    """Formularz edycji użytkownika"""
+    firstName = StringField('Imię', validators=[DataRequired()], render_kw={'placeholder': 'Imię'})
+    lastName = StringField('Nazwisko', validators=[DataRequired()], render_kw={'placeholder': 'Nazwisko'})
+    userMail = EmailField('Mail', validators=[DataRequired()], render_kw={'placeholder': 'Mail'})
+    userRole = SelectField('Uprawnienia', validators=[DataRequired()], choices=[('user','Użytkownik'),('admin', 'Administrator')])
+    submit = SubmitField('Zarejestruj się!')
+
+class AddUserForm(FlaskForm):
+    """Formularz dodawania użytkownika przez administratora"""
+    firstName = StringField('Imię', validators=[DataRequired()], render_kw={'placeholder': 'Imię'})
+    lastName = StringField('Nazwisko', validators=[DataRequired()], render_kw={'placeholder': 'Nazwisko'})
+    userMail = EmailField('Mail', validators=[DataRequired()], render_kw={'placeholder': 'Mail'})
+    userPass = PasswordField('Hasło', validators=[DataRequired()], render_kw={'placeholder': 'Hasło'})
+    userRole = SelectField('Uprawnienia', validators=[DataRequired()], choices=[('user','Użytkownik'),('admin', 'Administrator')])
+
     submit = SubmitField('Zarejestruj się!')
 
 # główna część aplikacji
@@ -82,10 +112,22 @@ def login():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     register_form = RegisterForm()
-    if register_form.validate_on_submit():
+    users = Users.query.all()
+    if register_form.validate_on_submit() and not users:
         try:
             hashed_password = bcrypt.generate_password_hash(register_form.userPass.data)
-            newUser = Users(userMail=register_form.userMail.data, userPassword=hashed_password, firstName=register_form.firstName.data, lastName = register_form.lastName.data)
+            newUser = Users(userMail=register_form.userMail.data, userPassword=hashed_password, firstName=register_form.firstName.data, lastName = register_form.lastName.data, userRole="admin")
+            db.session.add(newUser)
+            db.session.commit()
+            flash('Konto utworzone poprawnie', 'success')
+            return redirect(url_for('login'))
+        except Exception as e:
+            flash('Taki adres E-Mail już istnieje!', 'danger')
+            return redirect(url_for('register'))
+    elif register_form.validate_on_submit():
+        try:
+            hashed_password = bcrypt.generate_password_hash(register_form.userPass.data)
+            newUser = Users(userMail=register_form.userMail.data, userPassword=hashed_password, firstName=register_form.firstName.data, lastName = register_form.lastName.data, userRole="user")
             db.session.add(newUser)
             db.session.commit()
             flash('Konto utworzone poprawnie', 'success')
@@ -98,11 +140,11 @@ def register():
 @app.route('/addUser', methods=['GET', 'POST'])
 @login_required
 def addUser():
-    register_form = RegisterForm()
-    if register_form.validate_on_submit():
+    addForm = AddUserForm()
+    if addForm.validate_on_submit():
         try:
-            hashed_password = bcrypt.generate_password_hash(register_form.userPass.data)
-            newUser = Users(userMail=register_form.userMail.data, userPassword=hashed_password, firstName=register_form.firstName.data, lastName = register_form.lastName.data)
+            hashed_password = bcrypt.generate_password_hash(addForm.userPass.data)
+            newUser = Users(userMail=addForm.userMail.data, userPassword=hashed_password, firstName=addForm.firstName.data, lastName = addForm.lastName.data, userRole = addForm.userRole.data )
             db.session.add(newUser)
             db.session.commit()
             flash('Konto utworzone poprawnie', 'success')
@@ -110,7 +152,7 @@ def addUser():
         except Exception as e:
             flash('Taki adres E-Mail już istnieje!', 'danger')
             return redirect(url_for('dashboard'))
-    return render_template('register.html', title='Logowanie', headLine="Logowanie", register_form=register_form)
+    return render_template('register.html', title='Logowanie', headLine="Logowanie", register_form=addForm)
 
 @app.route('/deleteUser', methods=['GET', 'POST'])
 @login_required
@@ -126,18 +168,57 @@ def deleteUser():
 @app.route('/editUser<int:id>', methods=['GET', 'POST'])
 @login_required
 def editUser(id):
-    editUser = RegisterForm()
+    editUser = EditUserForm()
     user = Users.query.get_or_404(id)
     if editUser.validate_on_submit():
         try:
             user.firstName = editUser.firstName.data
             user.lastName = editUser.lastName.data
             user.userMail = editUser.userMail.data
+            user.userRole = editUser.userRole.data
             db.session.commit()
             flash('Dane użytkownika zostały zmienione!', 'success')
             return redirect(url_for('dashboard'))
         except Exception as e:
             print(e)
+
+@app.route('/changePassword', methods=['GET', 'POST'])
+@login_required
+def chPasswd():
+    chPasswd = chPasswdForm()
+    user = Users.query.get_or_404(current_user.id)
+    if chPasswd.validate_on_submit():
+        try:
+            if bcrypt.check_password_hash(user.userPassword, chPasswd.oldUserPass.data):
+                hashed_password = bcrypt.generate_password_hash(chPasswd.newUserPass.data)
+                user.userPassword = hashed_password
+                db.session.commit()
+                flash('Hasło zmienione!', 'success')
+                return redirect(url_for('dashboard'))
+            else:
+                flash('Złe hasło!', 'danger')
+                return redirect(url_for('dashboard'))
+        except Exception as e:
+            print(e)
+            flash('Błąd!', 'danger')
+            return redirect(url_for('dashboard'))
+
+@app.route('/userPasswd<int:id>', methods=['GET', 'POST'])
+@login_required
+def ChUserPasswd(id):
+    chPasswd = SudoChPasswdForm()
+    user = Users.query.get_or_404(id)
+    if chPasswd.validate_on_submit():
+        try:
+             hashed_password = bcrypt.generate_password_hash(chPasswd.newUserPass.data)
+             user.userPassword = hashed_password
+             db.session.commit()
+             flash('Hasło zmienione!', 'success')
+             return redirect(url_for('dashboard'))
+        except Exception as e:
+            print(e)
+            flash('Błąd!', 'danger')
+            return redirect(url_for('dashboard'))
 
 
 @app.route('/logout', methods=['GET', 'POST'])
@@ -150,7 +231,9 @@ def dashboard():
     users = Users.query.all()
     addUser = RegisterForm()
     editUser = RegisterForm()
-    return render_template('dashboard.html', title='Dashboard', users=users, addUser=addUser, editUser=editUser)
+    SudoChUserPassword = SudoChPasswdForm()
+    chPasswd = chPasswdForm()
+    return render_template('dashboard.html', title='Dashboard', users=users, addUser=addUser, editUser=editUser, chPasswd=chPasswd, SudoChUserPassword=SudoChUserPassword)
 
 # @app.errorhandler(404)
 # def pageNotFound(e):

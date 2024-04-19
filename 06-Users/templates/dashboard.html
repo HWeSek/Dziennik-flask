@@ -10,7 +10,8 @@
     {% endif %}
 {% endblock %}
 {% block content %}
-    <div class="row container-md ms-5">
+    <div class="px-5">
+    <div class="row">
             {% with messages = get_flashed_messages(with_categories=True) %}
                 {% if messages %}
                     {% for category,message in messages %}
@@ -21,46 +22,14 @@
                 {% endif %}
             {% endwith %}
     </div>
-    <div class="p-5">
-        <table class="table table-sm align-middle">
-            <thead>
-            <tr>
-                <th>ID</th>
-                <th>Imie</th>
-                <th>Nazwisko</th>
-                <th>Mail</th>
-                <th>Rola</th>
-                <th>Edycja</th>
-            </tr>
-            </thead>
-            <tbody>
-                {% for user in users %}
-                    <tr>
-                        <td>{{ user.id }}</td>
-                        <td>{{ user.firstName }}</td>
-                        <td>{{ user.lastName }}</td>
-                        <td>{{ user.userMail }}</td>
-                        <td>
-                        {% if user.userRole == "admin" %}
-                            Administrator
-                        {% else %}
-                            Użytkownik
-                        {% endif %}
-
-                        </td>
-                        <td class="text-end">
-                            <a class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"  data-bs-target="#chUserPasswd{{ user.id }}"><i class="bi bi-key"></i></a>
-                            <a class="btn btn-sm btn-outline-warning" data-bs-toggle="modal"  data-bs-target="#editUser{{ user.id }}"><i class="bi bi-pencil-square"></i></a>
-                            <a class="btn btn-sm btn-outline-danger" data-bs-toggle="modal"  data-bs-target="#deleteUser{{ user.id }}"><i class="bi bi-trash3"></i></a>
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <div class="row float-end">
-            <a href="#" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#addUser">Dodaj użytkownika</a>
-        </div>
+    {% if current_user.userRole == 'admin' %}
+        {% include "includes/admin-dash.html" %}
+    {% else %}
+        {% include "includes/user-dash.html" %}
+    {% endif %}
     </div>
+
+
 
     <!----- ADD USER MODAL ------>
     <div class="modal fade" id="addUser" tabindex="-1" aria-lebelledby="addUserLabel" aria-hidden="true">
@@ -214,5 +183,153 @@
             </div>
         </div>
         </div>
+    {% endfor %}
+    <!----- Create folder ------>
+    <div class="modal fade" id="createFolder" tabindex="-1" aria-lebelledby="Create folder" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <p class="modal-title" id="addUserLabel">
+                        <i class="bi bi-folder-plus fs-5"></i>Tworzenie nowego folderu
+                    </p>
+                </div>
+                <form action="{{ url_for('createFolder') }}" method="post">
+                    {{ createFolder.hidden_tag() }}
+                    <div class="modal-body">
+                        <div class="input-group-text flex-nowrap py-1">
+                            {{ createFolder.name(class="form-control") }}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                             <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                        {{ createFolder.submit(class="btn btn-sm btn-outline-secondary", value="Stwórz folder") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- uploadFileModal -->
+    <div class="modal fade" id="uploadFile" tabindex="-1" aria-labelledby="uploadFileLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <p class="modal-title" id="uploadFileLabel">
+                        <i class="bi bi-cloud-arrow-up pe-2 fs-5"></i>Przesyłanie pliku
+                    </p>
+                </div>
+                <form method="post" action="{{ url_for('uploadFile') }}" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        {{ uploadFiles.hidden_tag() }}
+                        {{ uploadFiles.fileName(class="form-control") }}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                        {{ uploadFiles.submit(class="btn btn-sm btn-outline-secondary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% for folder in folders %}
+        <!-- rename folder modal -->
+    <div class="modal fade" id="renameFolder{{ folder.id }}" tabindex="-1" aria-labelledby="uploadFileLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <p class="modal-title" id="uploadFileLabel">
+                        <i class="bi bi-cloud-arrow-up pe-2 fs-5"></i>Zmiana nazwy folderu
+                    </p>
+                </div>
+                <form method="post" action="{{ url_for('renameFolder') }}" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        {{ renameFolder.hidden_tag() }}
+                        {{ renameFolder.folderName(class="form-control") }}
+                        <input type="hidden" name="folderId" value={{ folder.id }}>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                        {{ renameFolder.submit(class="btn btn-sm btn-outline-secondary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% for folder in folders %}
+        <!-- delete folder modal -->
+    <div class="modal fade" id="deleteFolder{{ folder.id }}" tabindex="-1" aria-labelledby="uploadFileLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <p class="modal-title" id="uploadFileLabel">
+                        <i class="bi bi-cloud-arrow-up pe-2 fs-5"></i>Usuwanie Folderu
+                    </p>
+                </div>
+                <form method="post" action="{{ url_for('deleteFolder') }}" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        <h2>Czy na pewno chcesz usunąć ten folder?</h2>
+                        <input type="hidden" name="folderId" value={{ folder.id }}>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Nie</button>
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Tak</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% for file in files %}
+        <!-- rename file modal -->
+    <div class="modal fade" id="renameFile{{ file.id }}" tabindex="-1" aria-labelledby="renameFileLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <p class="modal-title" id="renameFileLabel">
+                        <i class="bi bi-cloud-arrow-up pe-2 fs-5"></i>Zmiana nazwy pliku
+                    </p>
+                </div>
+                <form method="post" action="{{ url_for('renameFile') }}" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        {{ renameFolder.hidden_tag() }}
+                        {{ renameFolder.folderName(class="form-control") }}
+                        <input type="hidden" name="fileId" value={{ file.id }}>
+                        <input type="hidden" name="oldName" value={{ file.fileName }}>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                        {{ renameFolder.submit(class="btn btn-sm btn-outline-secondary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% for file in files %}
+        <!-- delete folder modal -->
+    <div class="modal fade" id="deleteFile{{ file.id }}" tabindex="-1" aria-labelledby="deleteFileLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <p class="modal-title" id="deleteFileLabel">
+                        <i class="bi bi-cloud-arrow-up pe-2 fs-5"></i>Usuwanie pliku
+                    </p>
+                </div>
+                <form method="post" action="{{ url_for('deleteFile') }}" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        <h2>Czy na pewno chcesz usunąć ten plik?</h2>
+                        <input type="hidden" name="fileId" value={{ file.id }}>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Nie</button>
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Tak</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
     {% endfor %}
 {% endblock %}

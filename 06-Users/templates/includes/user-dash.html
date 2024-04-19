@@ -30,7 +30,7 @@
                 <tbody>
                 {% for folder in folders %}
                     <tr>
-                        <td><i class="{{ folder.icon }} me-2"></i>{{ folder.folderName }}</td>
+                        <td><a href="/dashboard?path={{ folder.path + folder.folderName }}" style="text-decoration: none;"><i class="{{ folder.icon }} me-2"></i>{{ folder.folderName }}</a></td>
                         <td>{{ folder.time }}</td>
                         <td></td>
                         <td class="text-end">
@@ -41,7 +41,7 @@
                 {% endfor %}
                 {% for file in files %}
                     <tr>
-                        <td>{{ file.fileName }}</td>
+                        <td><i class="{{ file.icon }} me-2"></i>{{ file.fileName }}</td>
                         <td>{{ file.time }}</td>
                         <td>{{ file.size }} MB</td>
                         <td class="text-end">

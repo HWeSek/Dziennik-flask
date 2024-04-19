@@ -23,6 +23,9 @@ app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.jpeg', '.png', '.txt']
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 bcrypt = Bcrypt(app)
 
+#lokalizacja uzytkownika w strukturze danych
+userLocation = ''
+
 #konfig bazy danych
 basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'data/users.sqlite')
@@ -44,6 +47,7 @@ class Folders(db.Model):
     type = db.Column(db.String(20))
     icon = db.Column(db.String(40))
     time = db.Column(db.String(20))
+    path = db.Column(db.String(500))
 
 class Files(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -52,6 +56,7 @@ class Files(db.Model):
     icon = db.Column(db.String(40))
     time = db.Column(db.String(20))
     size = db.Column(db.String(20))
+    path = db.Column(db.String(500))
 
     def is_authenticated(self):
         return True
@@ -172,6 +177,12 @@ def register():
             newUser = Users(userMail=register_form.userMail.data, userPassword=hashed_password, firstName=register_form.firstName.data, lastName = register_form.lastName.data, userRole="user")
             db.session.add(newUser)
             db.session.commit()
+            time = datetime.now().strftime('%Y%m%d %H:%M:%S')
+            newFolder = Folders(folderName=register_form.firstName.data, type="folder", icon="bi bi-folder", time=time, path='/')
+            os.mkdir(os.path.join(app.config['UPLOAD_PATH'], register_form.firstName.data))
+            db.session.add(newFolder)
+            db.session.commit()
+            flash('Konto utworzone poprawnie', 'success')
             flash('Konto utworzone poprawnie', 'success')
             return redirect(url_for('login'))
         except Exception as e:
@@ -188,6 +199,11 @@ def addUser():
             hashed_password = bcrypt.generate_password_hash(addForm.userPass.data)
             newUser = Users(userMail=addForm.userMail.data, userPassword=hashed_password, firstName=addForm.firstName.data, lastName = addForm.lastName.data, userRole = addForm.userRole.data )
             db.session.add(newUser)
+            db.session.commit()
+            time = datetime.now().strftime('%Y%m%d %H:%M:%S')
+            newFolder = Folders(folderName=addForm.firstName.data, type="folder", icon="bi bi-folder", time=time, path='/')
+            os.mkdir(os.path.join(app.config['UPLOAD_PATH'], addForm.firstName.data))
+            db.session.add(newFolder)
             db.session.commit()
             flash('Konto utworzone poprawnie', 'success')
             return redirect(url_for('dashboard'))
@@ -274,8 +290,9 @@ def createFolder():
    folderName = request.form['name']
    if folderName != '':
        time = datetime.now().strftime('%Y%m%d %H:%M:%S')
-       newFolder = Folders(folderName = folderName, type="folder", icon="bi bi-folder", time=time)
-       os.mkdir(os.path.join(app.config['UPLOAD_PATH'], folderName))
+       newFolder = Folders(folderName = folderName, type="folder", icon="bi bi-folder", time=time, path=userLocation)
+       print(os.path.join(app.config['UPLOAD_PATH'], current_user.firstName, userLocation ,folderName))
+       os.mkdir(os.path.join(app.config['UPLOAD_PATH'], current_user.firstName, userLocation, folderName))
        db.session.add(newFolder)
        db.session.commit()
        flash('Folder utworzony poprawnie', 'success')
@@ -304,10 +321,10 @@ def uploadFile():
         elif fileExtension == '.txt':
             type = 'txt'
             icon = 'bi bi-filetype-txt'
-        uploadedFile.save(os.path.join(app.config['UPLOAD_PATH'], fileName))
-        size = round(os.stat(os.path.join(app.config['UPLOAD_PATH'], fileName)).st_size / (1024 * 1024), 2)
+        uploadedFile.save(os.path.join(app.config['UPLOAD_PATH'], current_user.firstName, userLocation, fileName))
+        size = round(os.stat(os.path.join(app.config['UPLOAD_PATH'], current_user.firstName, userLocation, fileName)).st_size / (1024 * 1024), 2)
         time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        newFile = Files(fileName=fileName, type=type, icon=icon, time=time, size=size)
+        newFile = Files(fileName=fileName, type=type, icon=icon, time=time, size=size, path=userLocation)
         db.session.add(newFile)
         db.session.commit()
         flash('Plik przesłany poprawnie', 'success')
@@ -368,8 +385,11 @@ def deleteFile():
 
 @app.route('/dashboard', methods=['GET', 'POST'])
 def dashboard():
-    folders = Folders.query.all()
-    files = Files.query.all()
+    userLocation=""
+    if request.args.get('path') != None:
+        userLocation = request.args.get('path')
+    folders = Folders.query.filter_by(path=userLocation).all()
+    files = Files.query.filter_by(path=userLocation).all()
     users = Users.query.all()
     addUser = RegisterForm()
     editUser = RegisterForm()

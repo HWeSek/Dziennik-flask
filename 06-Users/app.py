@@ -13,6 +13,7 @@ from flask_wtf.file import FileField, FileAllowed
 from werkzeug.utils import secure_filename
 from datetime import datetime
 
+import threading
 
 # konfiguracja aplikacji
 app = Flask(__name__)
@@ -23,8 +24,13 @@ app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.jpeg', '.png', '.txt']
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 bcrypt = Bcrypt(app)
 
-#lokalizacja uzytkownika w strukturze danych
-userLocation = ''
+#userLocation
+userLocation = ""
+def printit():
+  threading.Timer(2.0, printit).start()
+  print(userLocation)
+
+#printit()
 
 #konfig bazy danych
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -153,6 +159,9 @@ def login():
             if user:
                 if bcrypt.check_password_hash(user.userPassword, login_form.userPass.data):
                     login_user(user)
+                    # lokalizacja uzytkownika w strukturze danych
+                    global userLocation
+                    userLocation = current_user.firstName + "/"
                     return redirect(url_for('dashboard'))
     return render_template('login.html', title='Logowanie', headLine="Logowanie", login_form=login_form)
 
@@ -287,15 +296,18 @@ def logout():
 @app.route('/createFolder', methods=['GET', 'POST'])
 @login_required
 def createFolder():
+   location_array = userLocation.split(',')
    folderName = request.form['name']
    if folderName != '':
-       time = datetime.now().strftime('%Y%m%d %H:%M:%S')
-       newFolder = Folders(folderName = folderName, type="folder", icon="bi bi-folder", time=time, path=userLocation)
-       print(os.path.join(app.config['UPLOAD_PATH'], current_user.firstName, userLocation ,folderName))
-       os.mkdir(os.path.join(app.config['UPLOAD_PATH'], current_user.firstName, userLocation, folderName))
-       db.session.add(newFolder)
-       db.session.commit()
-       flash('Folder utworzony poprawnie', 'success')
+       try:
+            time = datetime.now().strftime('%Y%m%d %H:%M:%S')
+            newFolder = Folders(folderName = folderName, type="folder", icon="bi bi-folder", time=time, path=userLocation)
+            os.mkdir(os.path.join(app.config['UPLOAD_PATH'], *location_array, folderName))
+            db.session.add(newFolder)
+            db.session.commit()
+            flash('Folder utworzony poprawnie', 'success')
+       except Exception as e:
+           flash(e.args, 'danger')
    return redirect(url_for('dashboard'))
 
 @app.route('/uploadFile', methods=['GET', 'POST'])
@@ -304,30 +316,33 @@ def uploadFile():
     uploadedFile = request.files['fileName']
     fileName = secure_filename(uploadedFile.filename)
     if fileName != '':
-        fileExtension = os.path.splitext(fileName)[1]
-        if fileExtension not in app.config['UPLOAD_EXTENSIONS']:
-            abort(400)
-        type = ''
-        icon = ''
-        if fileExtension == '.png':
-            type = 'png'
-            icon = 'bi bi-filetype-png'
-        elif fileExtension == '.jpg':
-            type = 'jpg'
-            icon = 'bi bi-filetype-jpg'
-        elif fileExtension == '.jpeg':
-            type = 'jpeg'
-            icon = 'bi bi-filetype-jpg'
-        elif fileExtension == '.txt':
-            type = 'txt'
-            icon = 'bi bi-filetype-txt'
-        uploadedFile.save(os.path.join(app.config['UPLOAD_PATH'], current_user.firstName, userLocation, fileName))
-        size = round(os.stat(os.path.join(app.config['UPLOAD_PATH'], current_user.firstName, userLocation, fileName)).st_size / (1024 * 1024), 2)
-        time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        newFile = Files(fileName=fileName, type=type, icon=icon, time=time, size=size, path=userLocation)
-        db.session.add(newFile)
-        db.session.commit()
-        flash('Plik przesłany poprawnie', 'success')
+        try:
+            fileExtension = os.path.splitext(fileName)[1]
+            if fileExtension not in app.config['UPLOAD_EXTENSIONS']:
+                abort(400)
+            type = ''
+            icon = ''
+            if fileExtension == '.png':
+                type = 'png'
+                icon = 'bi bi-filetype-png'
+            elif fileExtension == '.jpg':
+                type = 'jpg'
+                icon = 'bi bi-filetype-jpg'
+            elif fileExtension == '.jpeg':
+                type = 'jpeg'
+                icon = 'bi bi-filetype-jpg'
+            elif fileExtension == '.txt':
+                type = 'txt'
+                icon = 'bi bi-filetype-txt'
+            uploadedFile.save(os.path.join(app.config['UPLOAD_PATH'],userLocation, fileName))
+            size = round(os.stat(os.path.join(app.config['UPLOAD_PATH'], userLocation, fileName)).st_size / (1024 * 1024), 2)
+            time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            newFile = Files(fileName=fileName, type=type, icon=icon, time=time, size=size, path=userLocation)
+            db.session.add(newFile)
+            db.session.commit()
+            flash('Plik przesłany poprawnie', 'success')
+        except Exception as e:
+            flash(e.args, 'danger')
         return redirect(url_for('dashboard'))
 
 @app.route('/renameFolder', methods=('GET', 'POST'))
@@ -337,7 +352,7 @@ def renameFolder():
     newName = request.form['folderName']
     if newName != '':
         folder = Folders.query.get_or_404(id)
-        os.rename(os.path.join(app.config['UPLOAD_PATH'], folder.folderName), os.path.join(app.config['UPLOAD_PATH'], newName))
+        os.rename(os.path.join(app.config['UPLOAD_PATH'], userLocation,folder.folderName), os.path.join(app.config['UPLOAD_PATH'], current_user.firstName, userLocation, newName))
         folder.folderName = newName
         db.session.commit()
         flash('Zmiana nazwy folderu udana!', 'success')
@@ -348,7 +363,7 @@ def renameFolder():
 def deleteFolder():
     id = request.form['folderId']
     folder = Folders.query.get_or_404(id)
-    os.rmdir(os.path.join(app.config['UPLOAD_PATH'], folder.folderName))
+    os.rmdir(os.path.join(app.config['UPLOAD_PATH'], userLocation, folder.folderName))
     db.session.delete(folder)
     db.session.commit()
     flash('Folder usunięty poprawnie!', 'success')
@@ -366,7 +381,7 @@ def renameFile():
         if '.' not in newName:
             newName = newName + '.' + extension
         file = Files.query.get_or_404(id)
-        os.rename(os.path.join(app.config['UPLOAD_PATH'], file.fileName), os.path.join(app.config['UPLOAD_PATH'], newName))
+        os.rename(os.path.join(app.config['UPLOAD_PATH'], userLocation,file.fileName), os.path.join(app.config['UPLOAD_PATH'], current_user.firstName, userLocation,newName))
         file.fileName = newName
         db.session.commit()
         flash('Zmiana nazwy folderu udana!', 'success')
@@ -377,7 +392,7 @@ def renameFile():
 def deleteFile():
     id = request.form['fileId']
     file = Files.query.get_or_404(id)
-    os.remove(os.path.join(app.config['UPLOAD_PATH'], file.fileName))
+    os.remove(os.path.join(app.config['UPLOAD_PATH'], userLocation,file.fileName))
     db.session.delete(file)
     db.session.commit()
     flash('Folder usunięty poprawnie!', 'success')
@@ -385,9 +400,10 @@ def deleteFile():
 
 @app.route('/dashboard', methods=['GET', 'POST'])
 def dashboard():
-    userLocation=""
     if request.args.get('path') != None:
-        userLocation = request.args.get('path')
+        global userLocation
+        userLocation = current_user.firstName+"/"+request.args.get('path')
+    print(userLocation)
     folders = Folders.query.filter_by(path=userLocation).all()
     files = Files.query.filter_by(path=userLocation).all()
     users = Users.query.all()
